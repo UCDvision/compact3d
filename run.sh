@@ -10,14 +10,12 @@ output_base=output/exp_001
 dset=tandt
 scene=train
 cuda_device=0
-ckpt=output/exp_001_noquant/"$dset"/"$scene"/chkpnt"$st_iter".pth
 path_source="$path_base"/"$dset"/"$scene"
 path_output="$output_base"/"$dset"/"$scene"
 
 CUDA_VISIBLE_DEVICES=$cuda_device python train_kmeans.py \
   -s="$path_source" \
   -m="$path_output" \
-  --start_checkpoint "$ckpt" \
   --kmeans_ncls "$ncls" \
   --kmeans_ncls_sh "$ncls_sh" \
   --kmeans_ncls_dc "$ncls_dc" \
