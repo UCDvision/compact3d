@@ -41,7 +41,7 @@ python metrics.py -m <path to trained model> # Compute error metrics on renderin
 If you make use of the code, please cite the following work:
 ```
 @inproceedings{navaneet2023compact3d,
- author = {Navaneet, K L and Pourahmadi Meibodi, Kossar and Koohpayegani, Soroush Abbasi and Sleiman, Essam and Pirsiavash, Hamed},
+ author = {Navaneet, K L and Pourahmadi Meibodi, Kossar and Koohpayegani, Soroush Abbasi and Pirsiavash, Hamed},
  title = {Compact3D: Compressing Gaussian Splat Radiance Field Models with Vector Quantization},
  year = {2023}
 }
