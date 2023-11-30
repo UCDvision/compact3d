@@ -1,4 +1,4 @@
-path_base=/home/navaneet/data/
+path_base=<path_to_dataset_base>
 
 ncls=4096
 ncls_sh=512
