@@ -214,64 +214,60 @@
     <hr>
     <div class="w3-center">
         <h2 class="title is-3">Comparison with SOTA Methods</h2>
-
-        <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
-            <embed src="./static/images/table_1.png" style="width:80%">
-        </div>
-        <p>3DGS performs comparably or outperforms the best of the
-          NeRF based approaches while maintaining a high rendering speed during inference. Trained NeRF models are significantly smaller than
-          3DGS since NeRFs are parameterized using neural networks while 3DGS requires storage of parameters of millions of 3D Gaussians.
-          Our method, CompGS, is a vector quantized version of 3DGS that maintains the speed and performance advantages of 3DGS while being an order of
-          magnitude smaller. We report the averaged FPS and memory over all datasets. CompGS is identical to 3DGS during inference and thus
-          has the same FPS. ∗ Reproduced using official code. † Reported from 3DGS.
-        </p>
     </div>
+    <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
+        <embed src="./static/images/table_1.png" style="width:80%">
+    </div>
+    <p>3DGS performs comparably or outperforms the best of the
+      NeRF based approaches while maintaining a high rendering speed during inference. Trained NeRF models are significantly smaller than
+      3DGS since NeRFs are parameterized using neural networks while 3DGS requires storage of parameters of millions of 3D Gaussians.
+      Our method, CompGS, is a vector quantized version of 3DGS that maintains the speed and performance advantages of 3DGS while being an order of
+      magnitude smaller. We report the averaged FPS and memory over all datasets. CompGS is identical to 3DGS during inference and thus
+      has the same FPS. ∗ Reproduced using official code. † Reported from 3DGS.
+    </p>
+
 
     <hr>
     <div class="w3-center">
         <h2 class="title is-3">Comparison of Compression Methods</h2>
-
-        <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
-            <embed src="./static/images/table_2.png" style="width:80%">
-        </div>
-        <p>We evaluate different baseline approaches for compressing 3DGS. All memory
-          values are reported as a ratio of the method with our smallest model. CompGS performs favorably compared to all methods both in terms
-          of novel view synthesis performance and compression. We find that K-means based quantization of a pretrained model is not effective
-          and that is crucial to perform our quantization during the training of the Gaussian parameters. Bit-quantization approaches closely match
-          the original method when the number of bits is high but the performance greatly degrades when it is reduced to just 4-bits per value. Not
-          quantizing the position (Int-x no-pos) is crucial, especially with higher degrees of quantization. Since harmonics constitute 76% of each
-          Gaussian, 3DGS-no-SH achieves a high level of compression. But CompGS with only quantized harmonics achieves similar compression
-          with nearly no loss in performance compared to 3DGS.
-        </p>
     </div>
+    <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
+        <embed src="./static/images/table_2.png" style="width:80%">
+    </div>
+    <p>We evaluate different baseline approaches for compressing 3DGS. All memory
+      values are reported as a ratio of the method with our smallest model. CompGS performs favorably compared to all methods both in terms
+      of novel view synthesis performance and compression. We find that K-means based quantization of a pretrained model is not effective
+      and that is crucial to perform our quantization during the training of the Gaussian parameters. Bit-quantization approaches closely match
+      the original method when the number of bits is high but the performance greatly degrades when it is reduced to just 4-bits per value. Not
+      quantizing the position (Int-x no-pos) is crucial, especially with higher degrees of quantization. Since harmonics constitute 76% of each
+      Gaussian, 3DGS-no-SH achieves a high level of compression. But CompGS with only quantized harmonics achieves similar compression
+      with nearly no loss in performance compared to 3DGS.
+    </p>
 
     <hr>
     <div class="w3-center">
-        <h2 class="title is-3">Results on the Large-scale ARKit Dataset</h2>        
-        <p>We introduce ARKit with 200 scenes as a large scale
-          benchmark for novel view synthesis. The benchmark is created
-          using a subset of multi-view images from the ARKit indoor
-          scene understanding dataset. CompGS achieves a high level of
-          compression with nearly identical metrics for view synthesis. We
-          additionally report PSNR-AM as the PSNR calculated using arithmetic mean of MSE over all the scenes in the dataset to prevent the
-          domination of high-PSNR scenes. Compressing such large scale
-          indoor scenes can be particularly helpful for VR applications.
-        </p>
-        <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
-            <embed src="./static/images/table_3.png" style="width:50%">
-        </div>
+        <h2 class="title is-3">Results on the Large-scale ARKit Dataset</h2>
+    </div>       
+    <p>We introduce ARKit with 200 scenes as a large scale
+      benchmark for novel view synthesis. The benchmark is created
+      using a subset of multi-view images from the ARKit indoor
+      scene understanding dataset. CompGS achieves a high level of
+      compression with nearly identical metrics for view synthesis. We
+      additionally report PSNR-AM as the PSNR calculated using arithmetic mean of MSE over all the scenes in the dataset to prevent the
+      domination of high-PSNR scenes. Compressing such large scale
+      indoor scenes can be particularly helpful for VR applications.
+    </p>
+    <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
+        <embed src="./static/images/table_3.png" style="width:50%">
     </div>
 
-    <div class="w3-center">   
-        <p>We visualize the results of CompGS along with the uncomressed 3DGS and its variant
-          3DGS-No-SH on ARKit dataset. Presence of large noisy blobs is a common error mode for 3DGS-No-SH on this dataset. It also fails to faithfully reproduce
-          the colors and lighting in several scenes. The visual quality of the synthesized images for all methods is lower on this dataset compared
-          to the scenes present in standard benchmarks like Mip-NeRF360, indicating its utility as a novel benchmark.
-        </p>
-        <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
-            <embed src="./static/images/ARKit.png" style="width:70%">
-        </div>
-    </div>
+    <hr>
+    <p>We visualize the results of CompGS along with the uncomressed 3DGS and its variant
+      3DGS-No-SH on ARKit dataset. Presence of large noisy blobs is a common error mode for 3DGS-No-SH on this dataset. It also fails to faithfully reproduce
+      the colors and lighting in several scenes. The visual quality of the synthesized images for all methods is lower on this dataset compared
+      to the scenes present in standard benchmarks like Mip-NeRF360, indicating its utility as a novel benchmark.
+    </p>
+
 
   </div>
 </section>
