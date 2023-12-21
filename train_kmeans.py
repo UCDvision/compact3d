@@ -59,7 +59,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
     viewpoint_stack = None
     ema_loss_for_log = 0.0
-    ema_reg_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
     first_iter += 1
 
@@ -70,9 +69,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     # k-Means quantization
     quantized_params = args.quant_params
     lambda2 = args.lambda2
-    reg = args.reg
-    add_points = reg
-    l1_reg = reg
     n_cls = args.kmeans_ncls
     n_cls_sh = args.kmeans_ncls_sh
     n_cls_dc = args.kmeans_ncls_dc
@@ -94,10 +90,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     if 'sh_dc' in quantized_params:
         kmeans_shdc_q = Quantize_kMeans(num_clusters=n_cls_sh, num_iters=n_it)
 
-
-    # Add new points at the centroids of k-Means clustering
-    if add_points:
-        add_centers = KMeans()
     for iteration in range(first_iter, opt.iterations + 1):
         if network_gui.conn == None:
             network_gui.try_connect()
@@ -132,11 +124,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         if not viewpoint_stack:
             viewpoint_stack = scene.getTrainCameras().copy()
         viewpoint_cam = viewpoint_stack.pop(randint(0, len(viewpoint_stack)-1))
-
-        # add extra centers by kmeans on xyz
-        if iteration > 1100 and iteration < 14900 and add_points:
-            if iteration % 100 == 1:
-                add_centers.forward(gaussians)
 
         # quantize params
         if iteration > kmeans_st_iter:
@@ -178,12 +165,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         with torch.no_grad():
             # Progress bar
             ema_loss_for_log = 0.4 * loss.item() + 0.6 * ema_loss_for_log
-            if iteration > 1100 and iteration < 14900 and l1_reg:
-                ema_reg_for_log = 0.4 * loss_reg.item() + 0.6 * ema_reg_for_log
             if iteration % 10 == 0:
                 progress_bar.set_postfix({"Loss": f"{ema_loss_for_log:.{7}f}"})
-                if iteration > 1100 and iteration < 14900 and l1_reg:
-                    progress_bar.set_postfix({"Reg": f"{ema_reg_for_log:.{7}f}"})
                 progress_bar.update(10)
             if iteration == opt.iterations:
                 progress_bar.close()
@@ -214,9 +197,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                     size_threshold = 20 if iteration > opt.opacity_reset_interval else None
                     gaussians.densify_and_prune(opt.densify_grad_threshold, 0.005, scene.cameras_extent, size_threshold)
 
-                if not add_points:
-                    if iteration % opt.opacity_reset_interval == 0 or (dataset.white_background and iteration == opt.densify_from_iter):
-                        gaussians.reset_opacity()
+                if iteration % opt.opacity_reset_interval == 0 or (dataset.white_background and iteration == opt.densify_from_iter):
+                    gaussians.reset_opacity()
 
 
 
