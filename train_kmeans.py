@@ -19,6 +19,7 @@ from os.path import join
 import datetime
 import json
 import time
+from bitarray import bitarray
 
 import numpy as np
 import torch
@@ -39,7 +40,7 @@ try:
     TENSORBOARD_FOUND = True
 except ImportError:
     TENSORBOARD_FOUND = False
-#TENSORBOARD_FOUND = False
+
 
 def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from, args):
     first_iter = 0
@@ -62,13 +63,10 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
     first_iter += 1
 
-    prev_gaussian_size = gaussians._xyz.shape[0]
-
     num_gaussians_per_iter = []
 
     # k-Means quantization
     quantized_params = args.quant_params
-    lambda2 = args.lambda2
     n_cls = args.kmeans_ncls
     n_cls_sh = args.kmeans_ncls_sh
     n_cls_dc = args.kmeans_ncls_dc
@@ -156,7 +154,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
-        lambda1 = 1 / gaussians.get_xyz.shape[0]
         loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
         loss.backward()
 
@@ -177,15 +174,24 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
             if (iteration in saving_iterations):
                 print(args.model_path)
+                # print(f'PSNR Train: {psnr_train}, PSNR Test: {psnr_test}')
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
+                # Save only the non-quantized parameters in ply file.
+                all_attributes = {'xyz': 'xyz', 'dc': 'f_dc', 'sh': 'f_rest', 'opacities': 'opacities',
+                                  'scale': 'scale', 'rot': 'rotation'}
+                save_attributes = [val for (key, val) in all_attributes.items() if key not in quantized_params]
                 if iteration > kmeans_st_iter:
-                    scene.save(iteration, save_q=quantized_params)
+                    scene.save(iteration, save_q=quantized_params, save_attributes=save_attributes)
                 else:
                     scene.save(iteration, save_q=[])
 
-
-            # update and keep
-            prev_gaussian_size = gaussians._xyz.shape[0]
+                # Save indices and codebook for quantized parameters
+                kmeans_dict = {'rot': kmeans_rot_q, 'scale': kmeans_sc_q, 'sh': kmeans_sh_q, 'dc': kmeans_dc_q}
+                kmeans_list = []
+                for param in quantized_params:
+                    kmeans_list.append(kmeans_dict[param])
+                out_dir = join(scene.model_path, 'point_cloud/iteration_%d' % iteration)
+                save_kmeans(kmeans_list, quantized_params, out_dir)
 
             # Densification
             if iteration < opt.densify_until_iter:
@@ -200,8 +206,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 if iteration % opt.opacity_reset_interval == 0 or (dataset.white_background and iteration == opt.densify_from_iter):
                     gaussians.reset_opacity()
 
-
-
             # Optimizer step
             if iteration < opt.iterations:
                 gaussians.optimizer.step()
@@ -213,8 +217,48 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         num_gaussians_per_iter.append(gaussians.get_xyz.shape[0])
 
-    print("Number of points at the end: ", gaussians._xyz.shape[0])
+    print("Number of Gaussians at the end: ", gaussians._xyz.shape[0])
     np.save(f'{scene.model_path}/num_g_per_iters.npy', np.array(num_gaussians_per_iter))
+
+
+def dec2binary(x, n_bits=None):
+    """Convert decimal integer x to binary.
+
+    Code from: https://stackoverflow.com/questions/55918468/convert-integer-to-pytorch-tensor-of-binary-bits
+    """
+    if n_bits is None:
+        n_bits = torch.ceil(torch.log2(x)).type(torch.int64)
+    mask = 2**torch.arange(n_bits-1, -1, -1).to(x.device, x.dtype)
+    return x.unsqueeze(-1).bitwise_and(mask).ne(0)
+
+
+def save_kmeans(kmeans_list, quantized_params, out_dir):
+    """Save the codebook and indices of KMeans.
+
+    """
+    # Convert to bitarray object to save compressed version
+    # saving as npy or pth will use 8bits per digit (or boolean) for the indices
+    # Convert to binary, concat the indices for all params and save.
+    bitarray_all = bitarray([])
+    for kmeans in kmeans_list:
+        n_bits = int(np.ceil(np.log2(len(kmeans.cls_ids))))
+        assignments = dec2binary(kmeans.cls_ids, n_bits)
+        bitarr = bitarray(list(assignments.cpu().numpy().flatten()))
+        bitarray_all.extend(bitarr)
+    with open(join(out_dir, 'kmeans_inds.bin'), 'wb') as file:
+        bitarray_all.tofile(file)
+
+    # Save details needed for loading
+    args_dict = {}
+    args_dict['params'] = quantized_params
+    args_dict['n_bits'] = n_bits
+    args_dict['total_len'] = len(bitarray_all)
+    np.save(join(out_dir, 'kmeans_args.npy'), args_dict)
+    centers_dict = {param: kmeans.centers for (kmeans, param) in zip(kmeans_list, quantized_params)}
+
+    # Save codebook
+    torch.save(centers_dict, join(out_dir, 'kmeans_centers.pth'))
+
 
 def prepare_output_and_logger(args):
     if not args.model_path:
@@ -226,7 +270,7 @@ def prepare_output_and_logger(args):
 
     # Set up output folder
     print("Output folder: {}".format(args.model_path))
-    os.makedirs(args.model_path, exist_ok = True)
+    os.makedirs(args.model_path, exist_ok=True)
     with open(os.path.join(args.model_path, "cfg_args"), 'w') as cfg_log_f:
         cfg_log_f.write(str(Namespace(**vars(args))))
 
@@ -237,6 +281,7 @@ def prepare_output_and_logger(args):
     else:
         print("Tensorboard not available: not logging progress")
     return tb_writer
+
 
 def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
     if tb_writer:
@@ -292,7 +337,7 @@ if __name__ == "__main__":
     parser.add_argument('--detect_anomaly', action='store_true', default=False)
     parser.add_argument("--test_iterations", nargs="+", type=int, default=[5_000, 7_000, 10_000, 15_000, 20_000,
                                                                            25_000, 30_000])
-    parser.add_argument("--save_iterations", nargs="+", type=int, default=[7_000, 30_000, 35_000])
+    parser.add_argument("--save_iterations", nargs="+", type=int, default=[7_000, 30_000])
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--start_checkpoint", type=str, default = None)

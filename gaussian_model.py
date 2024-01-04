@@ -15,14 +15,18 @@ import numpy as np
 from utils.general_utils import inverse_sigmoid, get_expon_lr_func, build_rotation
 from torch import nn
 import os
+from os.path import join
+import pdb
+from tqdm import tqdm
+from bitarray import bitarray
+from collections import OrderedDict
+
 from utils.system_utils import mkdir_p
 from plyfile import PlyData, PlyElement
 from utils.sh_utils import RGB2SH
 from simple_knn._C import distCUDA2
 from utils.graphics_utils import BasicPointCloud
 from utils.general_utils import strip_symmetric, build_scaling_rotation
-import pdb
-from tqdm import tqdm
 
 class GaussianModel:
 
@@ -204,25 +208,33 @@ class GaussianModel:
                 param_group['lr'] = lr
                 return lr
 
-    def construct_list_of_attributes(self):
-        l = ['x', 'y', 'z', 'nx', 'ny', 'nz']
+    def construct_list_of_attributes(self, save_att=None):
+        # l = ['x', 'y', 'z', 'nx', 'ny', 'nz']
+        l = []
+        if 'xyz' in save_att:
+            l += ['x', 'y', 'z']
+        if 'normals' in save_att:
+            l += ['nx', 'ny', 'nz']
         # All channels except the 3 DC
-        for i in range(self._features_dc.shape[1]*self._features_dc.shape[2]):
-            l.append('f_dc_{}'.format(i))
-        for i in range(self._features_rest.shape[1]*self._features_rest.shape[2]):
-            l.append('f_rest_{}'.format(i))
+        if 'f_dc' in save_att:
+            for i in range(self._features_dc.shape[1]*self._features_dc.shape[2]):
+                l.append('f_dc_{}'.format(i))
+        if 'f_rest' in save_att:
+            for i in range(self._features_rest.shape[1]*self._features_rest.shape[2]):
+                l.append('f_rest_{}'.format(i))
         l.append('opacity')
-        for i in range(self._scaling.shape[1]):
-            l.append('scale_{}'.format(i))
-        for i in range(self._rotation.shape[1]):
-            l.append('rot_{}'.format(i))
+        if 'scale' in save_att:
+            for i in range(self._scaling.shape[1]):
+                l.append('scale_{}'.format(i))
+        if 'rotation' in save_att:
+            for i in range(self._rotation.shape[1]):
+                l.append('rot_{}'.format(i))
         return l
 
-    def save_ply(self, path, save_q=[]):
+    def save_ply(self, path, save_q=[], save_attributes=None):
         mkdir_p(os.path.dirname(path))
 
         xyz = self._xyz.detach().cpu().numpy()
-        normals = np.zeros_like(xyz)
         f_dc = self._features_dc.detach().transpose(1, 2).flatten(start_dim=1).contiguous().cpu().numpy()
         opacities = self._opacity.detach().cpu().numpy()
 
@@ -230,7 +242,6 @@ class GaussianModel:
         scale = self._scaling.detach().cpu().numpy()
         rotation = self._rotation.detach().cpu().numpy()
 
-        # Save quantized versions
         if 'pos' in save_q:
             xyz = self._xyz_q.detach().cpu().numpy()
         if 'dc' in save_q or 'sh_dc' in save_q:
@@ -242,10 +253,16 @@ class GaussianModel:
         if 'rot' in save_q or 'scale_rot' in save_q:
             rotation = self._rotation_q.detach().cpu().numpy()
 
-        dtype_full = [(attribute, 'f4') for attribute in self.construct_list_of_attributes()]
+        all_attributes = {'xyz': xyz, 'f_dc': f_dc, 'f_rest': f_rest, 'opacities': opacities,
+                          'scale': scale, 'rotation': rotation}
+        if save_attributes is None:
+            save_attributes = list(all_attributes.keys())
+        dtype_full = [(attribute, 'f4') for attribute in self.construct_list_of_attributes(save_attributes)]
+        print('non-quantized attributes: ', save_attributes)
+        print('quantized attributes: ', save_q)
 
         elements = np.empty(xyz.shape[0], dtype=dtype_full)
-        attributes = np.concatenate((xyz, normals, f_dc, f_rest, opacities, scale, rotation), axis=1)
+        attributes = np.concatenate(tuple([val for (key, val) in all_attributes.items() if key in save_attributes]), axis=1)
         elements[:] = list(map(tuple, attributes))
         el = PlyElement.describe(elements, 'vertex')
         PlyData([el]).write(path)
@@ -255,40 +272,86 @@ class GaussianModel:
         optimizable_tensors = self.replace_tensor_to_optimizer(opacities_new, "opacity")
         self._opacity = optimizable_tensors["opacity"]
 
-    def load_ply(self, path):
+    def bin2dec(self, b, bits):
+        """Convert binary b to decimal integer.
+
+        Code from: https://stackoverflow.com/questions/55918468/convert-integer-to-pytorch-tensor-of-binary-bits
+        """
+        mask = 2 ** torch.arange(bits - 1, -1, -1).to(b.device, torch.int64)
+        return torch.sum(mask * b, -1)
+
+    def load_ply(self, path, load_quant=False):
         plydata = PlyData.read(path)
+        quant_params = []
+        # Load indices and codebook for quantized params
+        if load_quant:
+            base_path = '/'.join(path.split('/')[:-1])
+            inds_file = join(base_path, 'kmeans_inds.bin')
+            codebook_file = join(base_path, 'kmeans_centers.pth')
+            args_file = join(base_path, 'kmeans_args.npy')
+            codebook = torch.load(codebook_file)
+            args_dict = np.load(args_file, allow_pickle=True).item()
+            quant_params = args_dict['params']
+            loaded_bitarray = bitarray()
+            with open(inds_file, 'rb') as file:
+                loaded_bitarray.fromfile(file)
+            # bitarray pads 0s if array is not divisible by 8. ignore extra 0s at end when loading
+            total_len = args_dict['total_len']
+            loaded_bitarray = loaded_bitarray[:total_len].tolist()
+            indices = np.reshape(loaded_bitarray, (-1, args_dict['n_bits']))
+            indices = self.bin2dec(torch.from_numpy(indices), args_dict['n_bits'])
+            indices = np.reshape(indices.cpu().numpy(), (len(quant_params), -1))
+            indices_dict = OrderedDict()
+            for i, key in enumerate(args_dict['params']):
+                indices_dict[key] = indices[i]
 
-        xyz = np.stack((np.asarray(plydata.elements[0]["x"]),
-                        np.asarray(plydata.elements[0]["y"]),
-                        np.asarray(plydata.elements[0]["z"])),  axis=1)
-        opacities = np.asarray(plydata.elements[0]["opacity"])[..., np.newaxis]
+        if 'xyz' in quant_params:
+            xyz = np.expand_dims(codebook['xyz'][indices_dict['xyz']].cpu().numpy(), -1)
+        else:
+            xyz = np.stack((np.asarray(plydata.elements[0]["x"]),
+                            np.asarray(plydata.elements[0]["y"]),
+                            np.asarray(plydata.elements[0]["z"])),  axis=1)
+            opacities = np.asarray(plydata.elements[0]["opacity"])[..., np.newaxis]
 
-        features_dc = np.zeros((xyz.shape[0], 3, 1))
-        features_dc[:, 0, 0] = np.asarray(plydata.elements[0]["f_dc_0"])
-        features_dc[:, 1, 0] = np.asarray(plydata.elements[0]["f_dc_1"])
-        features_dc[:, 2, 0] = np.asarray(plydata.elements[0]["f_dc_2"])
+        if 'dc' in quant_params:
+            features_dc = np.expand_dims(codebook['dc'][indices_dict['dc']].cpu().numpy(), -1)
+        else:
+            features_dc = np.zeros((xyz.shape[0], 3, 1))
+            features_dc[:, 0, 0] = np.asarray(plydata.elements[0]["f_dc_0"])
+            features_dc[:, 1, 0] = np.asarray(plydata.elements[0]["f_dc_1"])
+            features_dc[:, 2, 0] = np.asarray(plydata.elements[0]["f_dc_2"])
 
-        extra_f_names = [p.name for p in plydata.elements[0].properties if p.name.startswith("f_rest_")]
-        extra_f_names = sorted(extra_f_names, key = lambda x: int(x.split('_')[-1]))
-        assert len(extra_f_names)==3*(self.max_sh_degree + 1) ** 2 - 3
-        features_extra = np.zeros((xyz.shape[0], len(extra_f_names)))
-        for idx, attr_name in enumerate(extra_f_names):
-            features_extra[:, idx] = np.asarray(plydata.elements[0][attr_name])
-        # Reshape (P,F*SH_coeffs) to (P, F, SH_coeffs except DC)
-        features_extra = features_extra.reshape((features_extra.shape[0], 3, (self.max_sh_degree + 1) ** 2 - 1))
+        if 'sh' in quant_params:
+            features_extra = codebook['sh'][indices_dict['sh']].cpu().numpy()
+            features_extra = features_extra.reshape((features_extra.shape[0], (self.max_sh_degree + 1) ** 2 - 1, 3))
+            features_extra = features_extra.transpose((0, 2, 1))
+        else:
+            extra_f_names = [p.name for p in plydata.elements[0].properties if p.name.startswith("f_rest_")]
+            extra_f_names = sorted(extra_f_names, key = lambda x: int(x.split('_')[-1]))
+            assert len(extra_f_names)==3*(self.max_sh_degree + 1) ** 2 - 3
+            features_extra = np.zeros((xyz.shape[0], len(extra_f_names)))
+            for idx, attr_name in enumerate(extra_f_names):
+                features_extra[:, idx] = np.asarray(plydata.elements[0][attr_name])
+            # Reshape (P,F*SH_coeffs) to (P, F, SH_coeffs except DC)
+            features_extra = features_extra.reshape((features_extra.shape[0], 3, (self.max_sh_degree + 1) ** 2 - 1))
 
-        scale_names = [p.name for p in plydata.elements[0].properties if p.name.startswith("scale_")]
-        scale_names = sorted(scale_names, key = lambda x: int(x.split('_')[-1]))
-        scales = np.zeros((xyz.shape[0], len(scale_names)))
-        for idx, attr_name in enumerate(scale_names):
-            scales[:, idx] = np.asarray(plydata.elements[0][attr_name])
+        if 'scale' in quant_params:
+            scales = codebook['scale'][indices_dict['scale']].cpu().numpy()
+        else:
+            scale_names = [p.name for p in plydata.elements[0].properties if p.name.startswith("scale_")]
+            scale_names = sorted(scale_names, key=lambda x: int(x.split('_')[-1]))
+            scales = np.zeros((xyz.shape[0], len(scale_names)))
+            for idx, attr_name in enumerate(scale_names):
+                scales[:, idx] = np.asarray(plydata.elements[0][attr_name])
 
-        rot_names = [p.name for p in plydata.elements[0].properties if p.name.startswith("rot")]
-        rot_names = sorted(rot_names, key = lambda x: int(x.split('_')[-1]))
-        rots = np.zeros((xyz.shape[0], len(rot_names)))
-        for idx, attr_name in enumerate(rot_names):
-            rots[:, idx] = np.asarray(plydata.elements[0][attr_name])
-
+        if 'rot' in quant_params:
+            rots = codebook['rot'][indices_dict['rot']].cpu().numpy()
+        else:
+            rot_names = [p.name for p in plydata.elements[0].properties if p.name.startswith("rot")]
+            rot_names = sorted(rot_names, key = lambda x: int(x.split('_')[-1]))
+            rots = np.zeros((xyz.shape[0], len(rot_names)))
+            for idx, attr_name in enumerate(rot_names):
+                rots[:, idx] = np.asarray(plydata.elements[0][attr_name])
 
         self._xyz = nn.Parameter(torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(True))
         self._features_dc = nn.Parameter(torch.tensor(features_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(True))

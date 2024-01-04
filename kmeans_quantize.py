@@ -1,4 +1,3 @@
-
 import os
 import pdb
 from tqdm import tqdm
@@ -18,6 +17,7 @@ class Quantize_kMeans():
         self.centers = torch.empty(0)
         self.vec_dim = 0
         self.cluster_ids = torch.empty(0)
+        self.cls_ids = torch.empty(0)
         self.excl_clusters = []
         self.excl_cluster_ids = []
         self.cluster_len = torch.empty(0)
@@ -45,7 +45,6 @@ class Quantize_kMeans():
 
     # Update centers in non-cluster assignment iters using cached nn indices.
     def update_centers(self, feat):
-        tst_ = time.time()
         feat = feat.detach().reshape(-1, self.vec_dim)
         # Update all clusters except the excluded ones in a single operation
         # Add a dummy element with zeros at the end
@@ -63,9 +62,7 @@ class Quantize_kMeans():
     # Mask is obtained from distance matrix
     def update_centers_(self, feat, cluster_mask=None, nn_index=None, avg=False):
         feat = feat.detach().reshape(-1, self.vec_dim)
-        tst_uc = time.time()
         centers = (cluster_mask.T @ feat)
-        tsp_uc = time.time()
         if avg:
             self.centers /= counts.unsqueeze(-1)
         return centers
@@ -87,7 +84,6 @@ class Quantize_kMeans():
             topk = len(n_unq)
         max_cnt_topk, topk_idx = torch.topk(n_unq, topk)
         self.max_cnt = max_cnt_topk[0]
-        print('max: ', self.max_cnt)
         idx = 0
         self.excl_clusters = []
         self.excl_cluster_ids = []
@@ -100,12 +96,9 @@ class Quantize_kMeans():
                 break
         self.n_excl_cls = len(self.excl_clusters)
         self.excl_clusters = sorted(self.excl_clusters)
-        print('n excl: ', self.n_excl_cls)
         # Store the indices of elements for each cluster
         all_ids = []
         cls_len = []
-        # cls_len = torch.zeros(self.num_clusters, dtype=torch.long)
-        j = 0
         for i in range(self.num_clusters):
             cur_cluster_ids = torch.where(self.nn_index == i)[0]
             # For excluded clusters, use only the first max_cnt elements
@@ -122,6 +115,7 @@ class Quantize_kMeans():
         cls_len = torch.cat(cls_len).type(torch.long)
         self.cluster_ids = all_ids
         self.cluster_len = cls_len.unsqueeze(1).cuda()
+        self.cls_ids = self.nn_index
 
     def cluster_assign(self, feat, feat_scaled=None):
 
@@ -134,15 +128,10 @@ class Quantize_kMeans():
         if len(self.centers) == 0:
             self.centers = feat[torch.randperm(feat.shape[0])[:self.num_clusters], :]
 
-        tst = time.time()
         # start kmeans
         chunk = True
-        ttot_uc = 0
-        ttot_dist = 0
         counts = torch.zeros(self.num_clusters, dtype=torch.float32).cuda() + 1e-6
         centers = torch.zeros_like(self.centers)
-        tinit = time.time()
-        print(['*'] * 1)
         for iteration in range(self.num_kmeans_iters):
             # chunk for memory issues
             if chunk:
@@ -169,7 +158,6 @@ class Quantize_kMeans():
             # Reinitialize to 0
             centers[centers != 0] = 0.
             counts[counts > 0.1] = 0.
-        titers = time.time()
 
         if chunk:
             self.nn_index = None
