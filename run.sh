@@ -1,18 +1,17 @@
-path_base=/home/navaneet/data/
+path_base=<dataset_base_path>
 
 ncls=4096
 ncls_sh=512
 ncls_dc=4096
 kmeans_iters=10
 st_iter=15000
-max_iters=15100
+max_iters=30000
 output_base=output/exp_001
 dset=tandt
 scene=train
-cuda_device=1
+cuda_device=0
 port=4060
-ckpt=../../comp3d/my_gaussian-splatting/compact3d/output/e001_orig/"$dset"/"$scene"/chkpnt"$st_iter".pth
-#ckpt=output/exp_001_noquant/"$dset"/"$scene"/chkpnt"$st_iter".pth
+ckpt=output/exp_001_noquant/"$dset"/"$scene"/chkpnt"$st_iter".pth
 path_source="$path_base"/"$dset"/"$scene"
 path_output="$output_base"/"$dset"/"$scene"
 
