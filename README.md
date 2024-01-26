@@ -18,7 +18,11 @@ Our code is based on the excellent official repo for [3D Gaussian Splatting](htt
 git clone https://github.com/UCDvision/compact3d
 cd compact3d
 ```
-Then, follow the instructions [here](https://github.com/graphdeco-inria/gaussian-splatting/tree/main) to clone and install 3D Gaussian Splatting. You should now have a directory named ```gaussian-splatting``` in the ```compact3d``` folder. Next, move the downloaded files from our repo to the appropriate locations in the gaussian-splatting folder.
+Then, follow the instructions [here](https://github.com/graphdeco-inria/gaussian-splatting/tree/main) to clone and install 3D Gaussian Splatting. Additionally, install the ``bitarray`` package to efficiently store the kmeans indices. 
+```shell
+pip install bitarray
+```
+You should now have a directory named ```gaussian-splatting``` in the ```compact3d``` folder. Next, move the downloaded files from our repo to the appropriate locations in the gaussian-splatting folder.
 ```shell
 bash move_files_to_gsplat.sh
 ```
