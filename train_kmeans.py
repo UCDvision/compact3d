@@ -182,16 +182,16 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 save_attributes = [val for (key, val) in all_attributes.items() if key not in quantized_params]
                 if iteration > kmeans_st_iter:
                     scene.save(iteration, save_q=quantized_params, save_attributes=save_attributes)
+                    
+                    # Save indices and codebook for quantized parameters
+                    kmeans_dict = {'rot': kmeans_rot_q, 'scale': kmeans_sc_q, 'sh': kmeans_sh_q, 'dc': kmeans_dc_q}
+                    kmeans_list = []
+                    for param in quantized_params:
+                        kmeans_list.append(kmeans_dict[param])
+                    out_dir = join(scene.model_path, 'point_cloud/iteration_%d' % iteration)
+                    save_kmeans(kmeans_list, quantized_params, out_dir)
                 else:
                     scene.save(iteration, save_q=[])
-
-                # Save indices and codebook for quantized parameters
-                kmeans_dict = {'rot': kmeans_rot_q, 'scale': kmeans_sc_q, 'sh': kmeans_sh_q, 'dc': kmeans_dc_q}
-                kmeans_list = []
-                for param in quantized_params:
-                    kmeans_list.append(kmeans_dict[param])
-                out_dir = join(scene.model_path, 'point_cloud/iteration_%d' % iteration)
-                save_kmeans(kmeans_list, quantized_params, out_dir)
 
             # Densification
             if iteration < opt.densify_until_iter:
