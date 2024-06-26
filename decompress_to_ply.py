@@ -19,6 +19,7 @@ from os import makedirs
 from gaussian_renderer import render
 import torchvision
 from utils.general_utils import safe_state
+from utils.system_utils import searchForMaxIteration
 from argparse import ArgumentParser
 from arguments import ModelParams, PipelineParams, get_combined_args
 from gaussian_renderer import GaussianModel
@@ -28,6 +29,8 @@ def save2ply(dataset: ModelParams, iteration: int):
     with torch.no_grad():
         gaussians = GaussianModel(dataset.sh_degree)
 
+        if iteration == -1:
+            iteration = searchForMaxIteration(os.path.join(dataset.model_path, "point_cloud"))
         # Load quantized model
         print('Loading quantized model...')
         gaussians.load_ply(
