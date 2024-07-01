@@ -1,4 +1,4 @@
-# Compact3D: Compressing Gaussian Splat Radiance Field Models with Vector Quantization
+# Compact3D: Smaller and Faster Gaussian Splatting with Vector Quantization [ECCV 2024]
 
 This Repository is an official implementation of "[Compact3D: Smaller and Faster Gaussian Splatting with Vector Quantization](https://arxiv.org/abs/2311.18159)". The paper has been accepted at ECCV 2024. 
 
