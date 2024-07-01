@@ -1,6 +1,6 @@
 # Compact3D: Compressing Gaussian Splat Radiance Field Models with Vector Quantization
 
-This Repository is an official implementation of "[Compact3D: Compressing Gaussian Splat Radiance Field Models with Vector Quantization](https://arxiv.org/abs/2311.18159)".
+This Repository is an official implementation of "[Compact3D: Smaller and Faster Gaussian Splatting with Vector Quantization](https://arxiv.org/abs/2311.18159)". The paper has been accepted at ECCV 2024. 
 
 [[Overview]](#overview) [[Updates]](#updates) [[Getting Started]](#getting-started) [[Training]](#training) [[Rendering and Evaluation]](#rendering-and-evaluation) [[Pre-trained Models]](#pre-trained-models) [[Visualization]](#convert-quantized-model-to-non-quantized-for-visualization)
 
