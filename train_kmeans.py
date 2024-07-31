@@ -154,7 +154,18 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
-        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
+
+        # Optionally, use opacity regularization - from iter 15000 to max_prune_iter
+        if args.opacity_reg:
+            if iteration > args.max_prune_iter or iteration < 15000:
+                lambda_reg = 0.
+            else:
+                lambda_reg = args.lambda_reg
+            L_reg_op = gaussians.get_opacity.sum()
+            loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + (
+                    lambda_reg * L_reg_op)
+        else:
+            loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
         loss.backward()
 
         iter_end.record()
@@ -205,6 +216,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
                 if iteration % opt.opacity_reset_interval == 0 or (dataset.white_background and iteration == opt.densify_from_iter):
                     gaussians.reset_opacity()
+
+            # Prune Gaussians every 1000 iterations from iter 15000 to max_prune_iter if using opacity regularization
+            if args.opacity_reg and iteration > 15000:
+                if iteration <= args.max_prune_iter and iteration % 1000 == 0:
+                    print('Num Gaussians: ', gaussians._xyz.shape[0])
+                    size_threshold = None
+                    gaussians.prune(0.005, scene.cameras_extent, size_threshold)
+                    print('Num Gaussians after prune: ', gaussians._xyz.shape[0])
 
             # Optimizer step
             if iteration < opt.iterations:
@@ -360,6 +379,14 @@ if __name__ == "__main__":
     parser.add_argument('--grad_thresh', type=float, default=0.0002,
                         help='threshold on xyz gradients for densification')
     parser.add_argument("--quant_params", nargs="+", type=str, default=['sh', 'dc', 'scale', 'rot'])
+
+    # Opacity regularization parameters
+    parser.add_argument('--max_prune_iter', type=int, default=20000,
+                        help='Iteration till which pruning is done')
+    parser.add_argument('--opacity_reg', action='store_true', default=False,
+                        help='use opacity regularization during training')
+    parser.add_argument('--lambda_reg', type=float, default=0.,
+                        help='Weight for opacity regularization in loss')
 
     args = parser.parse_args(sys.argv[1:])
 

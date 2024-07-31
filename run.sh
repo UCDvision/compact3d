@@ -6,6 +6,8 @@ ncls_dc=4096
 kmeans_iters=10
 st_iter=15000
 max_iters=30000
+max_prune_iter=20000
+lambda_reg=1e-7
 output_base=output/exp_001
 dset=tandt
 scene=train
@@ -28,4 +30,7 @@ CUDA_VISIBLE_DEVICES=$cuda_device python train_kmeans.py \
   --total_iterations "$max_iters" \
   --quant_params sh dc rot scale\
   --kmeans_freq 100 \
+  --opacity_reg \
+  --lambda_reg "$lambda_reg" \
+  --max_prune_iter "$max_prune_iter" \
   --eval
