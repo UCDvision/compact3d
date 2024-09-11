@@ -512,7 +512,7 @@ class GaussianModel:
         torch.cuda.empty_cache()
 
     def prune(self, min_opacity, extent, max_screen_size):
-        prune_mask = (self.get_opacity_nq < min_opacity).squeeze()
+        prune_mask = (self.get_opacity < min_opacity).squeeze()
         if max_screen_size:
             big_points_vs = self.max_radii2D > max_screen_size
             big_points_ws = self.get_scaling_nq.max(dim=1).values > 0.1 * extent
