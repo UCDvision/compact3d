@@ -1,6 +1,6 @@
-# Compact3D: Smaller and Faster Gaussian Splatting with Vector Quantization [ECCV 2024]
+# CompGS: Smaller and Faster Gaussian Splatting with Vector Quantization [ECCV 2024]
 
-This Repository is an official implementation of "[Compact3D: Smaller and Faster Gaussian Splatting with Vector Quantization](https://arxiv.org/abs/2311.18159)". The paper has been accepted at ECCV 2024. 
+This Repository is an official implementation of "[CompGS: Smaller and Faster Gaussian Splatting with Vector Quantization](https://arxiv.org/abs/2311.18159)". The paper has been accepted at ECCV 2024. 
 
 [[Overview]](#overview) [[Updates]](#updates) [[Getting Started]](#getting-started) [[Training]](#training) [[Rendering and Evaluation]](#rendering-and-evaluation) [[Pre-trained Models]](#pre-trained-models) [[Visualization]](#convert-quantized-model-to-non-quantized-for-visualization)
 
@@ -68,10 +68,10 @@ python decompress_to_ply.py -m <path to trained model>
 If you make use of the code, please cite the following work:
 ```
 @article{navaneet2023compact3d,
-  title={Compact3D: Compressing Gaussian Splat Radiance Field Models with Vector Quantization},
+  title={CompGS: Smaller and Faster Gaussian Splatting with Vector Quantization},
   author={Navaneet, KL and Meibodi, Kossar Pourahmadi and Koohpayegani, Soroush Abbasi and Pirsiavash, Hamed},
-  journal={arXiv preprint arXiv:2311.18159},
-  year={2023}
+  journal={ECCV},
+  year={2024}
 }
 ```
 
