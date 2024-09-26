@@ -6,7 +6,7 @@
         content="Compact3D reduces the storage memory requirements of 3D Gaussian Splatting models.">
   <meta name="keywords" content="3D Gaussian Splat, Compact3D, Comp3D">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Compact3D: Smaller and Faster Gaussian Splatting with Vector Quantization</title>
+  <title>CompGS: Smaller and Faster Gaussian Splatting</title>
 
   <!-- Global site tag (gtag.js) - Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-PYVRSFMDRL"></script>
@@ -138,21 +138,13 @@
         <h2 class="title is-3">Abstract</h2>
         <div class="content has-text-justified">
           <p>
-            3D Gaussian Splatting is a new method for modeling and rendering 3D radiance fields that achieves much faster 
-            learning and rendering time compared to SOTA NeRF methods. However, it comes with a drawback in the much larger 
-            storage demand compared to NeRF methods since it needs to store the parameters for millions of 3D Gaussians.
+            3D Gaussian Splatting (3DGS) is a new method for modeling and rendering 3D radiance fields that achieves much faster learning and rendering time compared to SOTA NeRF methods. However, it comes with a drawback in the much larger storage demand compared to NeRF methods since it needs to store the parameters for several 3D Gaussians.
           </p>
           <p>
-            We notice that large groups of Gaussians share similar parameters and introduce a simple vector quantization 
-            method based on K-means algorithm to quantize the Gaussian parameters. Then, we store the small codebook along 
-            with the index of the code for each Gaussian. We compress the indices further by sorting them and using a method 
-            similar to run-length encoding. Moreover, we use a simple regularizer that encourages zero opacity 
-            (invisible Gaussians) to reduce the number of Gaussians, thereby compressing the model and speeding up the rendering. 
+            We notice that many Gaussians may share similar parameters, so we introduce a simple vector quantization method based on K-means to quantize the Gaussian parameters while optimizing them. Then, we store the small codebook along with the index of the code for each Gaussian. We compress the indices further by sorting them and using a method similar to run-length encoding. Moreover, we use a simple regularizer to encourage zero opacity (invisible Gaussians) to reduce the storage and rendering time by a large factor through reducing the number of Gaussians.
           </p>
           <p>
-            We do extensive experiments on standard benchmarks as well as an existing 3D dataset that is an order of magnitude 
-            larger than the standard benchmarks used in this field. We show that our simple yet effective method can reduce the 
-            storage costs for 3DGS by 40 to 50x and rendering time by 2 to 3x with a very small drop in the quality of rendered images.
+            We do extensive experiments on standard benchmarks as well as an existing 3D dataset that is an order of magnitude larger than the standard benchmarks used in this field. We show that our simple yet effective method can reduce the storage cost for 3DGS by 40-50x and rendering time by 2-3x with a very small drop in the quality of rendered images.
           </p>          
         </div>
       </div>
@@ -169,16 +161,7 @@
     <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
         <embed src="./static/images/teaser_new.png" style="width:70%">
     </div>
-    <p>We compress the 3D Gaussian Splatting (3DGS) model by (1) compressing the parameters of each Gaussian and (2) reducing the total number of 
-      Gaussians. To compress the parameters, we use a simple K-means based vector quantization. The quantization
-      is performed along with the training of the Gaussian parameters. Considering each Gaussian as a vector, we perform K-means clustering 
-      on the covariance and color parameters to represent the N Gaussians in the model with k cluster centers (codes). 
-      Each Gaussian is then replaced by its corresponding code for rendering and loss calculation. The gradients with respect to centers are copied 
-      to all the elements in the corresponding cluster and the non-quantized versions of the parameters are updated. Only the codebook 
-      and code assignments for each Gaussian are stored and used for inference. Our method, CompGS, maintains the real-time rendering property of 
-      3DGS while compressing it by an order of magnitude. During training, we also encourage the Gaussians to be transparent by regularizing the 
-      opacity parameter. Highly transparent Gaussians are regularly pruned, resulting in fewer total Gaussians at the end of training. This further 
-      reduces the storage and also greatly speeds up the training and rendering.  
+    <p>We compress 3DGS using vector quantization of the parameters of the Gaussians. The quantization is performed along with the training of the Gaussian parameters. Considering each Gaussian as a vector, we perform K-means clustering to represent the N Gaussians in the model with k cluster centers (codes). Each Gaussian is then replaced by its corresponding code for rendering and loss calculation. The gradients wrt centers are copied to all the elements in the corresponding cluster and the non-quantized versions of the parameters are updated. Only the codebook and code assignments for each Gaussian are stored and used for inference. To further reduce the storage and inference time, we regularize opacity in the loss to encourage fully transparent Gaussians. CompGS maintains the real-time rendering property of 3DGS while compressing it by an order of magnitude. 
     </p>
 
     <hr>
@@ -188,15 +171,13 @@
     <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
         <embed src="./static/images/teaser_results.png" style="width:80%">
     </div>
+    <p>
+      All methods except INGP achieve comparable PSNR that are reported in Table below. CompGS, our compressed version of 3DGS, maintains the speed and performance of 3DGS while reducing its size to the levels of NeRF based approaches. We achieve around 45x compression and 2.5x inference speed up with little drop in performance (CompGS-32K). A bit quantized version of this (Ours-BitQ) compresses it further to a total compression of 65x with hardly noticeable difference in quality.
+    </p>
     <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
         <embed src="./static/images/table_1_v2.png" style="width:80%">
     </div>
-    <p>3DGS performs comparably or outperforms the best of the
-      NeRF based approaches while maintaining a high rendering speed during inference. Trained NeRF models are significantly smaller than
-      3DGS since NeRFs are parameterized using neural networks while 3DGS requires storage of parameters of millions of 3D Gaussians.
-      Our method, CompGS, is a vector quantized version of 3DGS that maintains the speed and performance advantages of 3DGS while being 40-50x 
-      smaller. ∗Reproduced using official code. †Reported from 3DGS. Our timings for 3DGS and CompGS are reported using a RTX6000
-      GPU while those with † used A6000 GPU. We boldface entries for emphasis.
+    <p>3DGS performs comparably or outperforms the best of the NeRF based approaches while maintaining a high rendering speed during inference. Trained NeRF models are significantly smaller than 3DGS since NeRFs are parameterized using neural networks while 3DGS requires storage of parameters of millions of 3D Gaussians. CompGS is a vector quantized version of 3DGS that maintains the speed and performance advantages of 3DGS while being 40-50x <strong>smaller</strong>. CompGS 32K BitQ is the post-training bit quantized version of CompGS 32K, in which position parameters are 16-bits, opacity is 8 bits, and the rest are 32 bits. * Reproduced using official code. † Reported from 3DGS. Our timings for 3DGS and CompGS are reported using a RTX6000 GPU while those with † used A6000 GPU. We boldface entries for emphasis.
     </p>
 
 
@@ -207,14 +188,7 @@
     <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
         <embed src="./static/images/table_2.png" style="width:80%">
     </div>
-    <p>We evaluate different baseline approaches for compressing 3DGS. All memory compresssion values are normalized by our smallest model (CompGS 4k, Int16), 
-      so that its compression value is 1. CompGS performs favorably compared to all methods both in terms
-      of novel view synthesis performance and compression. We find that K-means based quantization of a pretrained model is not effective
-      and that is crucial to perform our quantization during the training of the Gaussian parameters. Bit-quantization approaches closely match
-      the original method when the number of bits is high but the performance greatly degrades when it is reduced to just 4-bits per value. Not
-      quantizing the position (Int-x no-pos) is crucial, especially with higher degrees of quantization. Since harmonics constitute 76% of each
-      Gaussian, 3DGS-no-SH achieves a high level of compression. But CompGS with only quantized harmonics achieves similar compression
-      with nearly no loss in performance compared to 3DGS.
+    <p>We evaluate different baseline approaches for compressing the parameters of 3DGS without any reduction in the number of Gaussians. All memory values are reported as a ratio of the method with our smallest model. Our K-Means based vector quantization performs favorably compared to all methods both in terms of novel view synthesis performance and compression. Not quantizing the position values (Int-x no-pos) is crucial in bit quantization. Since harmonics constitute 76% of each Gaussian, 3DGS-no-SH achieves a high level of compression. But CompGS with only quantized harmonics achieves similar compression with nearly no loss in performance compared to 3DGS.
     </p>
 
     <hr>
