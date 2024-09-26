@@ -174,6 +174,8 @@
     <p>
       All methods except INGP achieve comparable PSNR that are reported in Table below. CompGS, our compressed version of 3DGS, maintains the speed and performance of 3DGS while reducing its size to the levels of NeRF based approaches. We achieve around 45x compression and 2.5x inference speed up with little drop in performance (CompGS-32K). A bit quantized version of this (Ours-BitQ) compresses it further to a total compression of 65x with hardly noticeable difference in quality.
     </p>
+
+    <hr>
     <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
         <embed src="./static/images/table_1_v2.png" style="width:80%">
     </div>
@@ -195,40 +197,34 @@
     <div class="w3-left-align w3-margin-bottom">
         <h2 class="title is-3">Results on the Large-scale ARKit Dataset</h2>
     </div>       
-    <p>We introduce ARKit with 200 scenes as a large scale
-      benchmark for novel view synthesis. The benchmark is created
-      using a subset of multi-view images from the ARKit indoor
-      scene understanding dataset. All memory compresssion values are normalized by our smallest model (CompGS 4k, Int16). 
-      CompGS achieves a high level of
-      compression with nearly identical metrics for view synthesis. We
-      additionally report PSNR-AM as the PSNR calculated using arithmetic mean of MSE over all the scenes in the dataset to prevent the
-      domination of high-PSNR scenes. Compressing such large scale
-      indoor scenes can be particularly helpful for VR applications.
-    </p>
     <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
         <embed src="./static/images/table_3.png" style="width:50%">
     </div>
-
-    <hr>
-    <p>We visualize the results of CompGS along with the uncomressed 3DGS and its variant
-      3DGS-No-SH on ARKit dataset. Presence of large noisy blobs is a common error mode for 3DGS-No-SH on this dataset. It also fails to faithfully reproduce
-      the colors and lighting in several scenes. The visual quality of the synthesized images for all methods is lower on this dataset compared
-      to the scenes present in standard benchmarks like Mip-NeRF360, indicating its utility as a novel benchmark.
-    </p>
     <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
         <embed src="./static/images/ARKit.png" style="width:70%">
     </div>
+    <p>We introduce ARKit with 200 scenes as a large scale
+      benchmark for novel view synthesis. The benchmark is created
+      using a subset of multi-view images from the ARKit indoor
+      scene understanding dataset. We report results for just the vector quantized version of CompGS. All memory compresssion values are normalized by our smallest model (CompGS 32K BitQ). In the table, CompGS achieves a high level of compression with nearly identical metrics for view synthesis. In the figure, 3DGS-No-SH fails to reconstruct well in several images while CompGS is nearly identical to 3DGS with a large reduction in model size.
+    </p>
+
+    <hr>
+    <div class="w3-left-align w3-margin-bottom">
+        <h2 class="title is-3">Results on DL3DV datasets</h2>
+    </div>
+    <div class="w3-display-container w3-row w3-white w3-margin-bottom w3-center">
+        <embed src="./static/images/table_4.png" style="width:50%">
+    </div>
+    <p>
+      Results on the 140 scenes NVS benchmark of DL3DV-10K dataset are shown in this table. Similar to the results on the smaller benchmarks, CompGS 32K compresses 3DGS by nearly 30x with a small drop in reconstruction quality. * is our reproduced results.
+    </p>
 
     <hr>
     <div class="w3-left-align w3-margin-bottom">
         <h2 class="title is-3">Conclusion</h2>
     </div>       
-    <p>3D Gaussian Splatting efficiently models 3D radiance fields, outperforming NeRF
-       in learning and rendering efficiency at the cost of increased storage. To reduce 
-       storage demands, we apply opacity regularization and K-means-based vector quantization, 
-       compressing indices and employing a compact codebook. Our
-       method cuts the storage cost of 3DGS by almost 45×, increases rendering FPS
-       by 2.5× while maintaining image quality across benchmarks.
+    <p>3D Gaussian Splatting efficiently models 3D radiance fields, outperforming NeRF in learning and rendering efficiency at the cost of increased storage. To reduce storage demands, we apply opacity regularization and K-means-based vector quantization, compressing indices and employing a compact codebook. Our method cuts the storage cost of 3DGS by almost 45x, increases rendering FPS by 2.5x while maintaining image quality across benchmarks.
 
     </p>
 
